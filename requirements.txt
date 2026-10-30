@@ -1,0 +1,6 @@
+Flask
+requests
+pdf2image
+google-genai
+psycopg2-binary
+gunicorn
