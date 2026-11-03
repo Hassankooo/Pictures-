@@ -239,31 +239,108 @@ def download_file(url, output_dir, fallback_filename):
         traceback.print_exc()
         return None, None
 
+
 def convert_to_pdf_if_needed(input_path, output_dir, extension):
-    if extension in (".ppt", ".pptx", ".potx"):
-        lo_profile_dir = tempfile.mkdtemp(prefix="lo_prof_")
+    if extension not in (".ppt", ".pptx", ".potx"):
+        return input_path
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    def convert(source_path, target_format, label):
+        profile_dir = tempfile.mkdtemp(prefix="lo_prof_")
+        destination_dir = os.path.join(output_dir, label)
+        os.makedirs(destination_dir, exist_ok=True)
+
+        expected = os.path.join(
+            destination_dir,
+            os.path.splitext(os.path.basename(source_path))[0]
+            + "." + target_format
+        )
+
         try:
-            res = subprocess.run(
+            result = subprocess.run(
                 [
                     "libreoffice",
-                    f"-env:UserInstallation=file://{lo_profile_dir}",
+                    f"-env:UserInstallation=file://{profile_dir}",
                     "--headless",
-                    "--convert-to", "pdf",
-                    input_path,
-                    "--outdir", output_dir
+                    "--convert-to", target_format,
+                    "--outdir", destination_dir,
+                    source_path,
                 ],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=240,
             )
-            if res.returncode == 0:
-                pdfs = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith(".pdf")]
-                if pdfs:
-                    return pdfs[0]
+
+            print(
+                f"[CONVERSION] {label}: code={result.returncode}; "
+                f"stdout={result.stdout[-2000:]}; "
+                f"stderr={result.stderr[-2000:]}",
+                flush=True,
+            )
+
+            if (
+                result.returncode == 0
+                and os.path.isfile(expected)
+                and os.path.getsize(expected) > 0
+            ):
+                return expected
+
+            print(
+                f"[CONVERSION] {label}: output missing or empty: {expected}",
+                flush=True,
+            )
+
+        except subprocess.TimeoutExpired:
+            print(
+                f"[CONVERSION] {label}: timed out after 240 seconds",
+                flush=True,
+            )
+
         except Exception:
+            print(
+                f"[CONVERSION] {label}: unexpected conversion error",
+                flush=True,
+            )
             traceback.print_exc()
+
         finally:
-            shutil.rmtree(lo_profile_dir, ignore_errors=True)
+            shutil.rmtree(profile_dir, ignore_errors=True)
+
         return None
-    return input_path
+
+    # المحاولة الأولى: التحويل مباشرة إلى PDF
+    pdf_path = convert(input_path, "pdf", "direct_pdf")
+
+    if pdf_path:
+        return pdf_path
+
+    # المحاولة الثانية: ملفات PPT القديمة فقط
+    if extension == ".ppt":
+        pptx_path = convert(
+            input_path,
+            "pptx",
+            "legacy_ppt_to_pptx"
+        )
+
+        if pptx_path:
+            pdf_path = convert(
+                pptx_path,
+                "pdf",
+                "fallback_pdf"
+            )
+
+            if pdf_path:
+                return pdf_path
+
+    print(
+        f"[CONVERSION] Could not convert {input_path} ({extension}) to PDF",
+        flush=True,
+    )
+
+    return None
+    
 
 # ============================================================
 # GEMINI GENERATION
