@@ -66,6 +66,15 @@ def init_db():
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS shared_quizzes (
+                    id SERIAL PRIMARY KEY,
+                    share_code TEXT UNIQUE NOT NULL,
+                    quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
+                    owner_sender_id TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             try:
                 cur.execute("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS parent_quiz_id INTEGER DEFAULT NULL")
                 cur.execute("ALTER TABLE explanations ADD COLUMN IF NOT EXISTS completion_logs_json TEXT DEFAULT '[]'")
