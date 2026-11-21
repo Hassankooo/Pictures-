@@ -348,4 +348,65 @@ def update_explanation_note(explanation_id, sender_id, note):
 if __name__ == "__main__":
     init_db()
     print("Database initialized successfully.")
-                        
+
+def create_quiz_share(quiz_id, sender_id):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # التأكد من أن الاختبار ملك للمستخدم
+            cur.execute(
+                "SELECT id FROM quizzes WHERE id = %s AND sender_id = %s",
+                (quiz_id, sender_id)
+            )
+            if not cur.fetchone():
+                return None
+
+            # إعادة الرمز القديم إن وجد
+            cur.execute("""
+                SELECT share_code FROM shared_quizzes
+                WHERE quiz_id = %s AND owner_sender_id = %s
+            """, (quiz_id, sender_id))
+
+            existing = cur.fetchone()
+            if existing:
+                return existing["share_code"]
+
+            # إنشاء رمز جديد
+            import uuid
+            share_code = uuid.uuid4().hex[:8].upper()
+
+            cur.execute("""
+                INSERT INTO shared_quizzes
+                (share_code, quiz_id, owner_sender_id)
+                VALUES (%s, %s, %s)
+            """, (share_code, quiz_id, sender_id))
+
+        conn.commit()
+        return share_code
+
+    finally:
+        conn.close()
+
+
+def get_shared_quiz(share_code):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT q.id, q.title, q.source_filename,
+                       q.questions_json
+                FROM shared_quizzes s
+                JOIN quizzes q ON q.id = s.quiz_id
+                WHERE s.share_code = %s
+            """, (share_code.upper(),))
+
+            row = cur.fetchone()
+
+            if not row:
+                return None
+
+            row["questions"] = json.loads(row["questions_json"])
+            return row
+
+    finally:
+        conn.close()
