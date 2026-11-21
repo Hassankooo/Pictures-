@@ -845,7 +845,54 @@ def show_explanations_wallet(sender_id, page=0):
 def handle_text(sender_id, text):
     text = (text or "").strip()
     if not text: return
+    # استيراد اختبار مشترك
+    if text.startswith("استيراد"):
+        parts = text.split(maxsplit=1)
 
+        if len(parts) != 2:
+            send_message(
+                sender_id,
+                "❌ طريقة الاستيراد غير صحيحة.\n\n"
+                "اكتب:\nاستيراد CODE"
+            )
+            return
+
+        share_code = parts[1].strip().upper()
+
+        if not re.fullmatch(r"[A-F0-9]{8}", share_code):
+            send_message(sender_id, "❌ رمز المشاركة غير صالح.")
+            return
+
+        shared = database.get_shared_quiz(share_code)
+
+        if not shared:
+            send_message(sender_id, "❌ الاختبار غير موجود أو رمز المشاركة غير صحيح.")
+            return
+
+        new_quiz_id = database.save_quiz(
+            sender_id,
+            shared["title"],
+            shared["questions"],
+            source_filename="Shared quiz"
+        )
+
+        send_quick_replies(
+            sender_id,
+            "✅ تم استيراد الاختبار بنجاح!\n\n"
+            f"📌 الاسم: {shared['title']}\n"
+            f"❓ عدد الأسئلة: {len(shared['questions'])}\n\n"
+            "أصبح الاختبار موجوداً في محفظتك.",
+            ["المحفظة", "بدء الاختبار"]
+        )
+
+        with session_lock:
+            user_sessions[sender_id] = {
+                "state": "SAVED_QUIZ",
+                "saved_quiz_id": new_quiz_id
+            }
+
+        return
+        
     if text in ("المحفظة", "wallet"):
         with session_lock:
             user_sessions[sender_id] = user_sessions.get(sender_id, {})
