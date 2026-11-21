@@ -1240,7 +1240,11 @@ def handle_text(sender_id, text):
             parent_id = session.get("parent_quiz_id")
             quiz_id = database.save_quiz(sender_id, draft["title"], draft["questions"], session.get("source_filename", ""), parent_quiz_id=parent_id)
             with session_lock: user_sessions[sender_id] = {"state": "SAVED_QUIZ", "saved_quiz_id": quiz_id}
-            send_quick_replies(sender_id, f"✅ تم حفظ الاختبار.\n\n📌 {draft['title']}", ["بدء الاختبار", "إنهاء"])
+            send_quick_replies(
+    sender_id,
+    f"✅ تم حفظ الاختبار.\n\n📌 {draft['title']}",
+    ["بدء الاختبار", "مشاركة الاختبار", "إنهاء"]
+            )
             return
         if text == "بدء الاختبار":
             parent_id = session.get("parent_quiz_id")
@@ -1265,6 +1269,11 @@ def handle_text(sender_id, text):
         if text == "بدء الاختبار":
             start_quiz(sender_id, session["saved_quiz_id"])
             return
+
+        if text == "مشاركة الاختبار":
+            share_quiz(sender_id, session["saved_quiz_id"])
+            return
+
         if text == "إنهاء":
             cleanup_session(sender_id)
             send_message(sender_id, "👋 تم إنهاء العملية.")
