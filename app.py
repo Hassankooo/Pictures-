@@ -567,6 +567,21 @@ def send_next_batch(sender_id):
 # ============================================================
 # QUIZ LOGIC
 # ============================================================
+def share_quiz(sender_id, quiz_id):
+    code = database.create_quiz_share(quiz_id, sender_id)
+
+    if not code:
+        send_message(sender_id, "❌ تعذر إنشاء رابط المشاركة.")
+        return
+
+    send_message(
+        sender_id,
+        "🔗 رمز مشاركة الاختبار:\n\n"
+        f"{code}\n\n"
+        "📌 أرسل هذا الرمز إلى صديقك.\n"
+        "يمكنه استيراد الاختبار بكتابة:\n"
+        f"استيراد {code}"
+    )
 
 def quiz_preview(sender_id, quiz_data):
     title = quiz_data.get("title", "اختبار جديد")
