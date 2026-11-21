@@ -1095,7 +1095,7 @@ def handle_text(sender_id, text):
                 quiz_title = items[num - 1]["title"]
                 
                 mistake_quiz = database.get_mistake_quiz_by_parent(quiz_id, sender_id)
-                options = ["بدء جديد", "إستئناف", "الأخطاء"]
+                options = ["بدء جديد", "إستئناف", "الأخطاء", "مشاركة الاختبار"]
                 if mistake_quiz:
                     options.append("أسئلة الأخطاء")
                 options.extend(["حذف الاختبار", "رجوع", "الخروج"])
@@ -1168,6 +1168,10 @@ def handle_text(sender_id, text):
             send_message(sender_id, "\n".join(lines))
             time.sleep(0.5)
             send_quick_replies(sender_id, "📌 ما الخطوة التالية؟", ["Make MCQs for أخطائي", "رجوع", "الخروج"])
+            return
+
+        if text == "مشاركة الاختبار":
+            share_quiz(sender_id, quiz_id)
             return
         if text == "أسئلة الأخطاء":
             m_quiz_id = session.get("mistake_quiz_id")
